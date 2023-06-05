@@ -24,14 +24,14 @@ Edit `Rocket.toml` to set port and ip.
 cargo run -r
 ```
 
-## Usage
+## API
 
 ### Create new alias
 
 #### Request
 
 ```http request
-POST /post HTTP/1.1
+POST /api/create_alias HTTP/1.1
 ```
 
 #### Request body
@@ -45,8 +45,82 @@ POST /post HTTP/1.1
 }
 ```
 
-### Use alias
+### Get all aliases
 
+#### Request
+
+```http request
+POST /api/create_alias HTTP/1.1
+```
+
+#### Request body
+
+```json
+{
+    "access_key": "<ACCESS_KEY>" // May not be provided, if no ./access_keys file
+}
+```
+
+#### Response body
+
+```json
+[
+    {
+        "alias": "alias_without_ad",
+        "url": "https://example.com"
+    },
+    {
+        "alias": "alias_with_ad",
+        "redirect_with_ad": true,
+        "url": "https://example.com"
+    }
+]
+```
+
+### Remove alias
+
+Removes all alias with provided name.
+
+#### Request
+
+```http request
+POST /api/remove_alias HTTP/1.1
+```
+
+#### Request body
+
+```json
+{
+    "alias": "<ALIAS>",
+    "access_key": "<ACCESS_KEY>" // May not be provided, if no ./access_keys file
+}
+```
+
+#### Response
+
+##### Alias(es) removed
+
+```json
+[
+    {
+        "alias": "alias",
+        "url": "https://example.com"
+    },
+    {
+        "alias": "alias",
+        "redirect_with_ad": true,
+        "url": "https://another.com"
+    }
+]
+```
+
+##### No aliases found
+
+```json
+[]
+```
+
+### Use alias
 
 #### Request
 
