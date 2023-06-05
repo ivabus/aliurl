@@ -6,12 +6,14 @@ use std::io::BufReader;
 
 use rocket::http::RawStr;
 use rocket::http::Status;
+use rocket::response::content::RawHtml;
 use rocket::response::Redirect;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 struct CreateAliasRequest {
 	url: String,
+	redirect_with_ad: Option<String>,
 	access_key: Option<String>,
 	alias: Option<String>,
 }
@@ -23,6 +25,8 @@ const INDEX_REDIRECT: &'static str = "https://ivabus.dev";
 struct Alias {
 	url: String,
 	alias: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	redirect_with_ad: Option<bool>,
 }
 
 fn read_alias() -> Vec<Alias> {
@@ -75,10 +79,22 @@ fn create_alias(data: &RawStr) -> (Status, String) {
 	if alias.contains("?") {
 		return (Status::BadRequest, format!("Error: alias should not contain '?'"));
 	}
-	alias_list.push(Alias {
-		url: data.url.clone(),
-		alias: alias.clone(),
-	});
+	if let Some(s) = data.redirect_with_ad {
+		if s.to_lowercase() == "true" {
+			alias_list.push(Alias {
+				url: data.url.clone(),
+				alias: alias.clone(),
+				redirect_with_ad: Some(true),
+			});
+		}
+	} else {
+		alias_list.push(Alias {
+			url: data.url.clone(),
+			alias: alias.clone(),
+			redirect_with_ad: None,
+		});
+	}
+
 	alias_list.dedup_by(|a, b| a.alias == b.alias);
 
 	file.write_all(serde_json::to_string(&alias_list).unwrap().as_bytes()).unwrap();
@@ -93,16 +109,24 @@ fn not_found() -> Status {
 }
 
 #[get("/<page>")]
-async fn get_page(page: String) -> Redirect {
+async fn get_page(page: String) -> Result<Redirect, RawHtml<String>> {
 	let mut decoded_page = String::new();
 	url_escape::decode_to_string(page, &mut decoded_page);
 	let alias_list = read_alias();
 	for i in alias_list {
 		if i.alias == decoded_page {
-			return Redirect::to(i.url);
+			if let Some(red) = i.redirect_with_ad {
+				if red {
+					let mut redirect = String::new();
+					let mut file = std::fs::File::open("./redirect.html").unwrap();
+					file.read_to_string(&mut redirect).unwrap();
+					return Err(RawHtml(redirect.replace("#REDIRECT#", i.url.as_str())));
+				}
+			}
+			return Ok(Redirect::to(i.url));
 		}
 	}
-	Redirect::to("/404")
+	Ok(Redirect::to("/404"))
 }
 
 #[get("/")]
