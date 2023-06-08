@@ -39,7 +39,7 @@ POST /api/create_alias HTTP/1.1
 ```json
 {
     "url": "<URL_TO_BE_ALIASED>",
-    "alias": "<ALIAS_URI>",      // If not provided, UUID will be generated
+    "alias": "<ALIAS_URI>",      // If not provided, random string will be generated
     "access_key": "<ACCESS_KEY>" // May not be provided, if no ./access_keys file
     "redirect_with_ad": "<BOOL>" //May not be provided, if provided will use ./redirect.html
 }

@@ -12,6 +12,9 @@ use rocket::response::Redirect;
 use serde::{Deserialize, Serialize};
 
 static mut ACCESS_KEY_REQUIRED: bool = true;
+
+const LEN_OF_GENERATIVE_ALIASES: usize = 6;
+
 const INDEX_REDIRECT: &'static str = "https://ivabus.dev";
 const INDEX_WITH_AD: bool = true;
 

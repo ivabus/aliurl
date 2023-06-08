@@ -1,4 +1,5 @@
 use crate::*;
+use rand::{distributions::Alphanumeric, Rng};
 use rocket::http::{RawStr, Status};
 use rocket::response::content::RawJson;
 use serde_json::json;
@@ -60,11 +61,30 @@ pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	let mut aliases_list = read_aliases();
 	let mut file = std::fs::File::options().write(true).open("./alias.json").unwrap();
 	let alias = match data.alias {
-		None => uuid::Uuid::new_v4().to_string(),
+		None => {
+			let mut gen: String;
+			'gen: loop {
+				gen = rand::thread_rng()
+					.sample_iter(&Alphanumeric)
+					.take(LEN_OF_GENERATIVE_ALIASES)
+					.map(char::from)
+					.collect();
+				for i in &aliases_list {
+					if i.alias == gen {
+						continue 'gen;
+					}
+				}
+				break 'gen;
+			}
+			gen
+		}
 		Some(alias) => alias,
 	};
 	if alias.contains("?") {
-		return (Status::BadRequest, RawJson(json!({"Error": "No access key"}).to_string()));
+		return (
+			Status::BadRequest,
+			RawJson(json!({"Error": "Alias should not contain \"?\""}).to_string()),
+		);
 	}
 	let alia = if let Some(s) = data.redirect_with_ad {
 		if s.to_lowercase() == "true" {
