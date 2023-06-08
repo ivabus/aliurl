@@ -1,5 +1,30 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 Ivan Bushchik
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 use crate::*;
-use rand::{distributions::Alphanumeric, Rng};
+
+use rand::distributions::{Alphanumeric, DistString};
 use rocket::http::{RawStr, Status};
 use rocket::response::content::RawJson;
 use serde_json::json;
@@ -64,11 +89,8 @@ pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 		None => {
 			let mut gen: String;
 			'gen: loop {
-				gen = rand::thread_rng()
-					.sample_iter(&Alphanumeric)
-					.take(LEN_OF_GENERATIVE_ALIASES)
-					.map(char::from)
-					.collect();
+				gen =
+					Alphanumeric.sample_string(&mut rand::thread_rng(), LEN_OF_GENERATIVE_ALIASES);
 				for i in &aliases_list {
 					if i.alias == gen {
 						continue 'gen;
@@ -86,34 +108,28 @@ pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 			RawJson(json!({"Error": "Alias should not contain \"?\""}).to_string()),
 		);
 	}
-	let alia = if let Some(s) = data.redirect_with_ad {
-		if s.to_lowercase() == "true" {
-			Alias {
-				url: data.url.clone(),
-				alias: alias.clone(),
-				redirect_with_ad: Some(true),
+	let alias = Alias {
+		url: data.url,
+		alias,
+		redirect_with_ad: match data.redirect_with_ad {
+			Some(s) => {
+				if s.to_ascii_lowercase() == "true" {
+					Some(true)
+				} else {
+					None
+				}
 			}
-		} else {
-			Alias {
-				url: data.url.clone(),
-				alias: alias.clone(),
-				redirect_with_ad: None,
-			}
-		}
-	} else {
-		Alias {
-			url: data.url.clone(),
-			alias: alias.clone(),
-			redirect_with_ad: None,
-		}
+			None => None,
+		},
 	};
-	aliases_list.push(alia.clone());
+
+	aliases_list.push(alias.clone());
 	aliases_list.dedup_by(|a, b| a.alias == b.alias);
 
 	file.write_all(serde_json::to_string(&aliases_list).unwrap().as_bytes()).unwrap();
-
 	file.sync_all().unwrap();
-	return (Status::Ok, RawJson(serde_json::to_string(&alia).unwrap()));
+
+	return (Status::Ok, RawJson(serde_json::to_string(&alias).unwrap()));
 }
 
 #[post("/api/get_aliases", data = "<data>")]
@@ -124,6 +140,7 @@ pub fn get_aliases(data: &RawStr) -> (Status, RawJson<String>) {
 			return (Status::BadRequest, RawJson(json!({"Error": format!("{e}")}).to_string()))
 		}
 	};
+
 	if let Err(e) = check_access_key(data.access_key) {
 		return e;
 	}
