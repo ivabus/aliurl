@@ -71,7 +71,7 @@ fn check_access_key(key: Option<String>) -> Result<String, (Status, RawJson<Stri
 }
 
 #[post("/api/create_alias", data = "<data>")]
-pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
+pub async fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	let data: CreateAliasRequest = match serde_json::from_str(&data.to_string()) {
 		Ok(req) => req,
 		Err(e) => {
@@ -82,8 +82,8 @@ pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	if let Err(e) = check_access_key(data.access_key) {
 		return e;
 	}
-
 	let mut aliases_list = read_aliases();
+	lock();
 	let mut file = std::fs::File::options().write(true).open("./alias.json").unwrap();
 	let alias = match data.alias {
 		None => {
@@ -128,12 +128,13 @@ pub fn create_alias(data: &RawStr) -> (Status, RawJson<String>) {
 
 	file.write_all(serde_json::to_string(&aliases_list).unwrap().as_bytes()).unwrap();
 	file.sync_all().unwrap();
+	unlock();
 
 	return (Status::Ok, RawJson(serde_json::to_string(&alias).unwrap()));
 }
 
 #[post("/api/get_aliases", data = "<data>")]
-pub fn get_aliases(data: &RawStr) -> (Status, RawJson<String>) {
+pub async fn get_aliases(data: &RawStr) -> (Status, RawJson<String>) {
 	let data: GetAliasesRequest = match serde_json::from_str(&data.to_string()) {
 		Ok(req) => req,
 		Err(e) => {
@@ -149,7 +150,7 @@ pub fn get_aliases(data: &RawStr) -> (Status, RawJson<String>) {
 }
 
 #[post("/api/remove_alias", data = "<data>")]
-pub fn remove_alias(data: &RawStr) -> (Status, RawJson<String>) {
+pub async fn remove_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	let data: RemoveAliasRequest = match serde_json::from_str(&data.to_string()) {
 		Ok(req) => req,
 		Err(e) => {
@@ -161,6 +162,7 @@ pub fn remove_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	}
 	let mut aliases_list = read_aliases();
 	let mut removed_aliases: Vec<Alias> = vec![];
+	lock();
 	let mut file = std::fs::File::options().write(true).open("./alias.json").unwrap();
 
 	for i in (0..aliases_list.len()).rev() {
@@ -172,6 +174,7 @@ pub fn remove_alias(data: &RawStr) -> (Status, RawJson<String>) {
 	file.write_all(&aliases_list.as_bytes()).unwrap();
 	file.set_len(aliases_list.as_bytes().len() as u64).unwrap();
 	file.sync_all().unwrap();
+	unlock();
 
 	return (Status::Ok, RawJson(serde_json::to_string(&removed_aliases).unwrap()));
 }

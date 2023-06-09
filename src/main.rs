@@ -50,7 +50,17 @@ struct Alias {
 	redirect_with_ad: Option<bool>,
 }
 
+fn lock() {
+	while std::path::Path::new("./alias.json.lock").exists() {}
+	std::fs::File::create("./alias.json.lock").unwrap();
+}
+
+fn unlock() {
+	std::fs::remove_file("./alias.json.lock").unwrap()
+}
+
 fn read_aliases() -> Vec<Alias> {
+	lock();
 	if !std::path::Path::new("./alias.json").exists() {
 		let mut file = std::fs::File::create("./alias.json").unwrap();
 		file.write_all(b"[]").unwrap();
@@ -66,6 +76,7 @@ fn read_aliases() -> Vec<Alias> {
 	let mut contents = String::new();
 	buf_reader.read_to_string(&mut contents).unwrap();
 	let aliases_list: Vec<Alias> = serde_json::from_str(&contents).unwrap();
+	unlock();
 	aliases_list
 }
 
