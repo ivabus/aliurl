@@ -1,3 +1,5 @@
+## Archived, see [ivabus/urouter](https://github.com/ivabus/urouter) or something else as a replacement
+
 # aliurl
 
 > ALIaser for URLs
